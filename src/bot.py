@@ -12,7 +12,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.future import select
 from models.user import User, Base
 
-# Setup logging
+# Setup logging to track bot activities and debug issues
+# This saves both to a file and console output
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -22,15 +23,17 @@ logging.basicConfig(
     ]
 )
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
 # Bot setup with minimal intents for better performance
+# We only enable message_content for reading messages
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Database setup
+# Database setup using SQLAlchemy
+# Using SQLite with async connection for better performance
 engine = create_async_engine(
     f"sqlite+aiosqlite:///{os.getenv('DATABASE_PATH', 'data/database.sqlite')}",
     echo=False
@@ -39,10 +42,12 @@ AsyncSessionLocal = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
 
+# Initialize database and create tables if they don't exist
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+# Helper function to get or create a user in the database
 async def get_user(session, user_id):
     stmt = select(User).where(User.user_id == str(user_id))
     result = await session.execute(stmt)
@@ -52,20 +57,24 @@ async def get_user(session, user_id):
         session.add(user)
     return user
 
+# Event that runs when the bot starts up
 @bot.event
 async def on_ready():
     await init_db()
     try:
+        # Try to set bot's username
         await bot.user.edit(username="Randy Marsh")
     except discord.HTTPException:
         pass  # Skip if we can't change the name due to rate limits
     logging.info(f'Logged in as {bot.user.name}')
     try:
+        # Sync slash commands with Discord
         synced = await bot.tree.sync()
         logging.info(f"Synced {len(synced)} command(s)")
     except Exception as e:
         logging.error(f"Failed to sync commands: {e}")
 
+# Daily reward command
 @bot.tree.command(name="daily", description="Claim your daily Tegridy reward")
 async def daily(interaction: discord.Interaction):
     async with AsyncSessionLocal() as session:
@@ -83,6 +92,7 @@ async def daily(interaction: discord.Interaction):
             )
             return
 
+        # Award the daily reward to user
         daily_amount = int(os.getenv('DAILY_REWARD', 1000))
         user.balance += daily_amount
         user.total_earned += daily_amount
@@ -94,6 +104,7 @@ async def daily(interaction: discord.Interaction):
             f"Current Tegridy: {user.balance} {os.getenv('CURRENCY_SYMBOL', '🌿')}"
         )
 
+# Balance checking command
 @bot.tree.command(name="balance", description="Check your Tegridy balance")
 async def balance(interaction: discord.Interaction):
     async with AsyncSessionLocal() as session:
@@ -104,6 +115,7 @@ async def balance(interaction: discord.Interaction):
             f"Your Tegridy balance: {user.balance} {os.getenv('CURRENCY_SYMBOL', '🌿')} {os.getenv('CURRENCY_NAME', 'Tegridy Bucks')}"
         )
 
+# Gambling dice game command
 @bot.tree.command(name="roll", description="Roll dice and bet your Tegridy Bucks")
 @app_commands.describe(
     amount="Amount to bet (use 'all' for all your Tegridy)",
@@ -112,7 +124,7 @@ async def roll(interaction: discord.Interaction, amount: str):
     async with AsyncSessionLocal() as session:
         user = await get_user(session, interaction.user.id)
         
-        # Convert amount to integer
+        # Convert bet amount to integer
         if amount.lower() == 'all':
             bet_amount = user.balance
         else:
@@ -134,7 +146,7 @@ async def roll(interaction: discord.Interaction, amount: str):
         user_roll = random.randint(1, 6)
         bot_roll = random.randint(1, 6)
 
-        # Determine outcome
+        # Determine outcome and calculate winnings
         if user_roll > bot_roll:
             # Win (2x bet)
             winnings = bet_amount
@@ -152,7 +164,7 @@ async def roll(interaction: discord.Interaction, amount: str):
 
         await session.commit()
 
-        # Create response message
+        # Create response message with game results
         message = (
             f"🎲 You rolled: {user_roll}\n"
             f"🤖 Bot rolled: {bot_roll}\n\n"
@@ -170,7 +182,7 @@ async def roll(interaction: discord.Interaction, amount: str):
         
         await interaction.response.send_message(message)
 
-# Error handling
+# Error handling for commands
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
@@ -178,7 +190,7 @@ async def on_command_error(ctx, error):
     else:
         logging.error(f"Error: {str(error)}")
 
-# Run the bot
+# Start the bot
 def run_bot():
     try:
         bot.run(os.getenv('DISCORD_TOKEN'), log_handler=None)
