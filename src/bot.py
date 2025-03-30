@@ -142,6 +142,47 @@ async def balance(interaction: discord.Interaction):
             f"Your Tegridy balance: {user.balance} {os.getenv('CURRENCY_SYMBOL', '🌿')} {os.getenv('CURRENCY_NAME', 'Tegridy Bucks')}"
         )
 
+# Help command to show available commands
+@bot.tree.command(name="help", description="Show all available commands")
+async def help_command(interaction: discord.Interaction):
+    # Check if command is used in the allowed channel
+    if not await check_channel(interaction):
+        return
+    
+    currency_name = os.getenv('CURRENCY_NAME', 'Tegridy Bucks')
+    currency_symbol = os.getenv('CURRENCY_SYMBOL', '🌿')
+    
+    embed = discord.Embed(
+        title="🌿 Tegridy Farm Bot Commands 🌿",
+        description=f"Here are all available commands. Use them in #{ALLOWED_CHANNEL} channel only.",
+        color=0x2ecc71
+    )
+    
+    embed.add_field(
+        name="/daily", 
+        value=f"Claim your daily {currency_symbol} {currency_name} reward", 
+        inline=False
+    )
+    embed.add_field(
+        name="/balance", 
+        value=f"Check your current {currency_name} balance", 
+        inline=False
+    )
+    embed.add_field(
+        name="/roll <amount>", 
+        value=f"Roll dice and bet your {currency_name}. Use 'all' to bet everything", 
+        inline=False
+    )
+    embed.add_field(
+        name="/help", 
+        value="Show this help message", 
+        inline=False
+    )
+    
+    embed.set_footer(text="Bot created with Tegridy™")
+    
+    await interaction.response.send_message(embed=embed)
+
 # Gambling dice game command
 @bot.tree.command(name="roll", description="Roll dice and bet your Tegridy Bucks")
 @app_commands.describe(
