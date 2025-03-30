@@ -8,6 +8,7 @@ A lightweight Discord bot for dice rolling and betting, optimized for Raspberry 
 - Dice rolling with betting (win double your bet!)
 - Support for "all-in" betting
 - Optimized for Raspberry Pi performance
+- Channel restriction for organized gambling
 
 ## Requirements
 
@@ -36,7 +37,21 @@ A lightweight Discord bot for dice rolling and betting, optimized for Raspberry 
    cp .env.example .env
    ```
 
-4. Start the bot:
+4. Configure your channel and other settings in the `.env` file:
+
+   ```
+   # Change this to your preferred channel name
+   ALLOWED_CHANNEL=tegridy-coins
+
+   # Customize currency name and symbol
+   CURRENCY_NAME=Coins
+   CURRENCY_SYMBOL=💰
+
+   # Set daily reward amount
+   DAILY_REWARD=1000
+   ```
+
+5. Start the bot:
    ```bash
    python src/bot.py
    ```
@@ -95,6 +110,16 @@ A lightweight Discord bot for dice rolling and betting, optimized for Raspberry 
 2. Check your balance with `/balance`
 3. Bet coins using `/roll <amount>` or `/roll all`
 4. Win double your bet if your roll is higher than the bot's!
+
+## Channel Restriction
+
+The bot will only respond to commands in the channel specified by `ALLOWED_CHANNEL` in your `.env` file. By default, this is set to "tegridy-coins". To use a different channel:
+
+1. Create the channel in your Discord server
+2. Edit your `.env` file and change `ALLOWED_CHANNEL=tegridy-coins` to your desired channel name
+3. Restart the bot
+
+This keeps all gambling activities in one dedicated channel.
 
 ## Configuration
 

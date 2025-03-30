@@ -42,6 +42,9 @@ AsyncSessionLocal = sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
 
+# Get allowed channel name from environment or use default
+ALLOWED_CHANNEL = os.getenv('ALLOWED_CHANNEL', 'tegridy-coins')
+
 # Initialize database and create tables if they don't exist
 async def init_db():
     async with engine.begin() as conn:
@@ -56,6 +59,16 @@ async def get_user(session, user_id):
         user = User(user_id=str(user_id))
         session.add(user)
     return user
+
+# Check if command is used in the allowed channel
+async def check_channel(interaction: discord.Interaction):
+    if interaction.channel.name != ALLOWED_CHANNEL:
+        await interaction.response.send_message(
+            f"This command can only be used in the #{ALLOWED_CHANNEL} channel!",
+            ephemeral=True
+        )
+        return False
+    return True
 
 # Event that runs when the bot starts up
 @bot.event
@@ -73,10 +86,16 @@ async def on_ready():
         logging.info(f"Synced {len(synced)} command(s)")
     except Exception as e:
         logging.error(f"Failed to sync commands: {e}")
+    
+    logging.info(f"Bot is restricted to channel: #{ALLOWED_CHANNEL}")
 
 # Daily reward command
 @bot.tree.command(name="daily", description="Claim your daily Tegridy reward")
 async def daily(interaction: discord.Interaction):
+    # Check if command is used in the allowed channel
+    if not await check_channel(interaction):
+        return
+        
     async with AsyncSessionLocal() as session:
         user = await get_user(session, interaction.user.id)
         
@@ -107,6 +126,10 @@ async def daily(interaction: discord.Interaction):
 # Balance checking command
 @bot.tree.command(name="balance", description="Check your Tegridy balance")
 async def balance(interaction: discord.Interaction):
+    # Check if command is used in the allowed channel
+    if not await check_channel(interaction):
+        return
+        
     async with AsyncSessionLocal() as session:
         user = await get_user(session, interaction.user.id)
         await session.commit()
@@ -121,6 +144,10 @@ async def balance(interaction: discord.Interaction):
     amount="Amount to bet (use 'all' for all your Tegridy)",
 )
 async def roll(interaction: discord.Interaction, amount: str):
+    # Check if command is used in the allowed channel
+    if not await check_channel(interaction):
+        return
+        
     async with AsyncSessionLocal() as session:
         user = await get_user(session, interaction.user.id)
         
