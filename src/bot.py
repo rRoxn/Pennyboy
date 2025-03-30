@@ -56,7 +56,11 @@ async def get_user(session, user_id):
     result = await session.execute(stmt)
     user = result.scalar_one_or_none()
     if not user:
-        user = User(user_id=str(user_id))
+        user = User(
+            user_id=str(user_id),
+            balance=0,
+            total_earned=0
+        )
         session.add(user)
     return user
 
